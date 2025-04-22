@@ -1,145 +1,257 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Upload Photo - Card Format</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      margin: 0;
-      background-color: #f9f9f9;
-    }
-
-    .container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 20px;
-    }
-
-    .upload-area {
-      position: relative;
-      width: 428px; /* ~85.6mm at 127dpi */
-      height: 270px; /* ~54mm at 127dpi */
-      border-radius: 20px;
-      overflow: hidden;
-      border: 2px dashed #999;
-      background-color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    #imagePreview {
-      position: absolute;
-      cursor: grab;
-      max-width: none;
-      max-height: none;
-      object-fit: none;
-      transform-origin: center center; /* Масштабирование будет происходить из центра */
-    }
-
-    input[type="file"] {
-      display: none;
-    }
-
-    label.upload-btn {
-      padding: 10px 20px;
-      background-color: #007BFF;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-    button {
-      padding: 10px 20px;
-      background-color: #28a745;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' https://api.emailjs.com">
+    <title>Обрезка фото под банковскую карту</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            min-height: 100vh;
+        }
+        .card-container {
+            width: 340px;
+            height: 214px;
+            background: transparent;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+            margin: 20px auto;
+        }
+        .cropper-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        #image {
+            max-width: none;
+            max-height: none;
+            display: none;
+            will-change: transform;
+            transition: transform 0.05s ease-out;
+        }
+        .card-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #4a90e2, #50c9c3);
+            border-radius: 10px;
+            opacity: 0.3;
+            z-index: 2;
+            pointer-events: none;
+        }
+        .cropper-crop-box {
+            border: 2px dashed #fff;
+            background: transparent !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 340px !important;
+            height: 214px !important;
+            transform: none !important;
+        }
+        .cropper-view-box {
+            border-radius: 10px;
+        }
+        .cropper-face {
+            background: transparent !important;
+        }
+        .upload-btn, .send-btn {
+            margin: 10px 0;
+            padding: 10px 20px;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .upload-btn {
+            background-color: #4a90e2;
+        }
+        .upload-btn:hover {
+            background-color: #357abd;
+        }
+        .send-btn {
+            background-color: #28a745;
+            display: none;
+        }
+        .send-btn:hover {
+            background-color: #218838;
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <div class="upload-area" id="frame">
-      <img id="imagePreview" src="" alt="Your photo will appear here" />
+    <h1>Обрезка фото под банковскую карту</h1>
+    <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+    <button class="upload-btn" id="uploadBtn">Загрузить фото</button>
+    <div class="card-container" id="cardContainer">
+        <div class="cropper-container" id="cropperContainer"></div>
+        <div class="card-overlay"></div>
     </div>
-    <label class="upload-btn" for="imageUpload">Выбрать фото</label>
-    <input type="file" id="imageUpload" accept="image/*" />
-    <button onclick="submitImage()">Отправить</button>
-  </div>
+    <button class="send-btn" id="sendBtn">Отправить результат</button>
 
-  <script>
-    const imageUpload = document.getElementById('imageUpload');
-    const imagePreview = document.getElementById('imagePreview');
-    let isDragging = false;
-    let offsetX, offsetY;
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3.11.0/dist/email.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"></script>
+    <script>
+        (function() {
+            emailjs.init("LLTnqHOpCj7sKSuda"); // Инициализация EmailJS
+        })();
 
-    let scale = 1; // Начальный масштаб
+        const imageUpload = document.getElementById('imageUpload');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const cropperContainer = document.getElementById('cropperContainer');
+        const sendBtn = document.getElementById('sendBtn');
+        let cropper = null;
+        let isProcessing = false;
 
-    // Обработка загрузки изображения
-    imageUpload.addEventListener('change', function (e) {
-      const file = e.target.files[0];
-      if (!file) return;
+        // Debounce для предотвращения множественных событий
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
 
-      const reader = new FileReader();
-      reader.onload = function (event) {
-        imagePreview.src = event.target.result;
-      };
-      reader.readAsDataURL(file);
-    });
+        // Очистка контейнера и создание нового изображения
+        function resetImage() {
+            if (cropper) {
+                cropper.destroy();
+                cropper = null;
+            }
+            cropperContainer.innerHTML = '<img id="image" alt="Ваше изображение">';
+            sendBtn.style.display = 'none';
+        }
 
-    // Начало перетаскивания изображения
-    imagePreview.addEventListener('mousedown', function (e) {
-      isDragging = true;
-      offsetX = e.clientX - imagePreview.offsetLeft;
-      offsetY = e.clientY - imagePreview.offsetTop;
-      imagePreview.style.cursor = 'grabbing';
-    });
+        // Обработчик клика по кнопке загрузки
+        uploadBtn.addEventListener('click', () => {
+            console.log('Upload button clicked'); // Отладка
+            imageUpload.click();
+        });
 
-    // Перетаскивание изображения
-    document.addEventListener('mousemove', function (e) {
-      if (isDragging) {
-        imagePreview.style.left = `${e.clientX - offsetX}px`;
-        imagePreview.style.top = `${e.clientY - offsetY}px`;
-      }
-    });
+        // Обработчик загрузки изображения
+        const handleImageUpload = debounce((e) => {
+            if (isProcessing) return;
+            isProcessing = true;
+            console.log('Image upload triggered'); // Отладка
 
-    // Завершение перетаскивания
-    document.addEventListener('mouseup', function () {
-      isDragging = false;
-      imagePreview.style.cursor = 'grab';
-    });
+            const file = e.target.files[0];
+            if (!file) {
+                isProcessing = false;
+                return;
+            }
 
-    // Масштабирование с колесика мыши
-    imagePreview.addEventListener('wheel', function (e) {
-      e.preventDefault(); // Отменяем стандартное поведение (прокрутка страницы)
+            // Очистка input
+            e.target.value = '';
 
-      if (e.deltaY < 0) {
-        scale += 0.1; // Увеличиваем масштаб
-      } else {
-        scale -= 0.1; // Уменьшаем масштаб
-      }
+            resetImage();
 
-      // Ограничиваем масштаб
-      scale = Math.min(Math.max(0.1, scale), 5); // Новый предел: 0.1 до 5
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const image = document.getElementById('image');
+                image.src = event.target.result;
+                image.style.display = 'block';
+                console.log('Image loaded'); // Отладка
 
-      // Применяем масштаб
-      imagePreview.style.transform = `scale(${scale})`;
-    });
+                cropper = new Cropper(image, {
+                    aspectRatio: 85.6 / 53.98, // Соотношение сторон банковской карты
+                    viewMode: 0, // Свободное перемещение по всей странице
+                    autoCropArea: 0, // Отключение автоматической обрезки
+                    movable: true,
+                    zoomable: true,
+                    scalable: true,
+                    background: false,
+                    cropBoxMovable: false,
+                    cropBoxResizable: false,
+                    dragMode: 'move', // Только перемещение изображения
+                    minContainerWidth: 340,
+                    minContainerHeight: 214,
+                    center: false, // Отключение автоцентрирования
+                    zoomOnTouch: true,
+                    zoomOnWheel: true,
+                    minZoom: 0.5, // Минимальный масштаб
+                    maxZoom: 2, // Максимальный масштаб
+                    data: {
+                        x: 0,
+                        y: 0,
+                        width: 340,
+                        height: 214
+                    },
+                    ready() {
+                        sendBtn.style.display = 'block';
+                        const cropBox = document.querySelector('.cropper-crop-box');
+                        cropBox.style.position = 'absolute';
+                        cropBox.style.top = '0';
+                        cropBox.style.left = '0';
+                        cropBox.style.transform = 'none';
+                        isProcessing = false;
+                        console.log('Cropper initialized'); // Отладка
+                    }
+                });
+            };
+            reader.readAsDataURL(file);
+        }, 300);
 
-    function submitImage() {
-      alert("Фото отправлено! (на самом деле нет — тут будет EmailJS)");
-    }
-  </script>
+        // Удаление старых слушателей и добавление нового
+        imageUpload.removeEventListener('change', handleImageUpload);
+        imageUpload.addEventListener('change', handleImageUpload);
+
+        // Обработчик отправки изображения
+        sendBtn.addEventListener('click', () => {
+            if (cropper && !isProcessing) {
+                isProcessing = true;
+                console.log('Send button clicked'); // Отладка
+                cropper.getCroppedCanvas({
+                    width: 856,
+                    height: 540
+                }).toBlob((blob) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const base64data = reader.result.split(',')[1];
+                        emailjs.send('service_u8osc3t', 'template_v8aa0uf', {
+                            message: 'Новое изображение от пользователя',
+                            image_data: base64data
+                        }).then(() => {
+                            alert('Изображение отправлено на почту!');
+                            isProcessing = false;
+                            console.log('Image sent via EmailJS'); // Отладка
+                        }).catch((error) => {
+                            console.error('Ошибка отправки:', error);
+                            alert('Ошибка при отправке изображения.');
+                            isProcessing = false;
+                        });
+
+                        const url = window.URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = 'cropped_image.png';
+                        link.click();
+                        window.URL.revokeObjectURL(url);
+                        console.log('Image downloaded'); // Отладка
+                    };
+                    reader.readAsDataURL(blob);
+                }, 'image/png');
+            }
+        });
+    </script>
 </body>
 </html>
