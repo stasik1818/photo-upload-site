@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upload Photo - Card Format</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f9f9f9;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .upload-area {
+      position: relative;
+      width: 428px; /* ~85.6mm at 127dpi */
+      height: 270px; /* ~54mm at 127dpi */
+      border-radius: 20px;
+      overflow: hidden;
+      border: 2px dashed #999;
+      background-color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #imagePreview {
+      position: absolute;
+      cursor: grab;
+      max-width: none;
+      max-height: none;
+      object-fit: none;
+      transform-origin: center center; /* Масштабирование будет происходить из центра */
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    label.upload-btn {
+      padding: 10px 20px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button {
+      padding: 10px 20px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="upload-area" id="frame">
+      <img id="imagePreview" src="" alt="Your photo will appear here" />
+    </div>
+    <label class="upload-btn" for="imageUpload">Выбрать фото</label>
+    <input type="file" id="imageUpload" accept="image/*" />
+    <button onclick="submitImage()">Отправить</button>
+  </div>
+
+  <script>
+    const imageUpload = document.getElementById('imageUpload');
+    const imagePreview = document.getElementById('imagePreview');
+    let isDragging = false;
+    let offsetX, offsetY;
+
+    let scale = 1; // Начальный масштаб
+
+    // Обработка загрузки изображения
+    imageUpload.addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        imagePreview.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Начало перетаскивания изображения
+    imagePreview.addEventListener('mousedown', function (e) {
+      isDragging = true;
+      offsetX = e.clientX - imagePreview.offsetLeft;
+      offsetY = e.clientY - imagePreview.offsetTop;
+      imagePreview.style.cursor = 'grabbing';
+    });
+
+    // Перетаскивание изображения
+    document.addEventListener('mousemove', function (e) {
+      if (isDragging) {
+        imagePreview.style.left = `${e.clientX - offsetX}px`;
+        imagePreview.style.top = `${e.clientY - offsetY}px`;
+      }
+    });
+
+    // Завершение перетаскивания
+    document.addEventListener('mouseup', function () {
+      isDragging = false;
+      imagePreview.style.cursor = 'grab';
+    });
+
+    // Масштабирование с колесика мыши
+    imagePreview.addEventListener('wheel', function (e) {
+      e.preventDefault(); // Отменяем стандартное поведение (прокрутка страницы)
+
+      if (e.deltaY < 0) {
+        scale += 0.1; // Увеличиваем масштаб
+      } else {
+        scale -= 0.1; // Уменьшаем масштаб
+      }
+
+      // Ограничиваем масштаб
+      scale = Math.min(Math.max(0.1, scale), 5); // Новый предел: 0.1 до 5
+
+      // Применяем масштаб
+      imagePreview.style.transform = `scale(${scale})`;
+    });
+
+    function submitImage() {
+      alert("Фото отправлено! (на самом деле нет — тут будет EmailJS)");
+    }
+  </script>
+</body>
+</html>
