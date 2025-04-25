@@ -1,0 +1,167 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.emailjs.com" />
+  <title>Редактор наклеек для банковских карт</title>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4.0.0/dist/email.min.js" onload="console.log('EmailJS library loaded')" onerror="console.error('Failed to load EmailJS library')"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: #f9f9f9;
+      margin: 0;
+      padding: 10px;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+      max-width: 100%;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    h2 {
+      font-size: 1.5em;
+      margin: 10px 0;
+      text-align: center;
+    }
+    .upload-area {
+      position: relative;
+      width: 428px;
+      height: 270px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 2px dashed #999;
+      background-color: #fff;
+      max-width: 90vw;
+      touch-action: none;
+    }
+    #imagePreview {
+      position: absolute;
+      cursor: grab;
+      max-width: none;
+      max-height: none;
+      object-fit: none;
+      transform-origin: center center;
+      left: 0;
+      top: 0;
+      display: none;
+    }
+    #imagePreview.loaded {
+      display: block;
+    }
+    input[type="file"] {
+      display: none;
+    }
+    label.upload-btn {
+      padding: 8px 16px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1em;
+    }
+    input[type="text"], textarea {
+      width: 90%;
+      max-width: 300px;
+      padding: 8px;
+      margin: 5px 0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1em;
+      box-sizing: border-box;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+    button {
+      padding: 8px 16px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1em;
+    }
+    @media (max-width: 600px) {
+      .upload-area {
+        width: 90vw;
+        height: calc(90vw * 0.63);
+      }
+      h2 {
+        font-size: 1.2em;
+      }
+      label.upload-btn, button {
+        padding: 6px 12px;
+        font-size: 0.9em;
+      }
+      input[type="text"], textarea {
+        width: 85%;
+        font-size: 0.9em;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Создать наклейку для банковской карты</h2>
+    <div class="upload-area" id="frame">
+      <img id="imagePreview" src="" alt="Ваше фото появится здесь" />
+    </div>
+    <label class="upload-btn" for="imageUpload">Выбрать фото</label>
+    <input type="file" id="imageUpload" accept="image/*" />
+    <input type="text" id="nameInput" placeholder="Ваше имя" />
+    <textarea id="commentInput" placeholder="Комментарий к заказу" rows="4"></textarea>
+    <button onclick="submitImage()">Отправить</button>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
